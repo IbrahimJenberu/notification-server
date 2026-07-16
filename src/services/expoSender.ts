@@ -103,7 +103,7 @@ export async function sendToTokens(
 
     const results = await Promise.allSettled(
       batch.map((chunk, idx) =>
-        sendChunkWithRetry(expo, chunk, tokenBatch[idx] ?? [], campaignId, tenantId)
+        sendChunkWithRetry(expo, chunk, tokenBatch[idx] ?? [], campaignId)
       )
     );
 
@@ -153,8 +153,7 @@ async function sendChunkWithRetry(
   expo: Expo,
   chunk: ExpoPushMessage[],
   chunkTokens: string[],
-  campaignId: string,
-  tenantId: string
+  campaignId: string
 ): Promise<ChunkResult> {
   let lastError: unknown;
 
@@ -166,7 +165,7 @@ async function sendChunkWithRetry(
 
     try {
       const tickets = await expo.sendPushNotificationsAsync(chunk);
-      return processTickets(tickets, chunkTokens, campaignId, tenantId);
+      return processTickets(tickets, chunkTokens, campaignId);
     } catch (err) {
       lastError = err;
       const msg = err instanceof Error ? err.message : String(err);
@@ -192,8 +191,7 @@ async function sendChunkWithRetry(
 function processTickets(
   tickets: ExpoPushTicket[],
   chunkTokens: string[],
-  campaignId: string,
-  tenantId: string
+  campaignId: string
 ): ChunkResult {
   let sentCount = 0;
   let failedCount = 0;
@@ -298,9 +296,9 @@ async function processReceipts(
   // Write delivery stats back to Firestore
   try {
     await campaignRef.update({
-      'statistics.deliveredCount': require('firebase-admin').firestore.FieldValue.increment(deliveredCount),
-      'statistics.errorCount': require('firebase-admin').firestore.FieldValue.increment(errorCount),
-      updatedAt: require('firebase-admin').firestore.FieldValue.serverTimestamp(),
+      'statistics.deliveredCount': admin.firestore.FieldValue.increment(deliveredCount),
+      'statistics.errorCount': admin.firestore.FieldValue.increment(errorCount),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch (err) {
     log.error('expoSender: failed to update delivery stats', {
