@@ -1,0 +1,47 @@
+# render.yaml — Render.com free-tier deployment configuration
+# Deploy via: render.com → New → Blueprint → point to this repo
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: snapinfo-notification-server
+    runtime: docker
+    dockerfilePath: ./notification-server/Dockerfile
+    dockerContext: ./notification-server
+    plan: free          # Render Free tier — spins down after 15min inactivity
+    region: oregon      # Change to nearest region (frankfurt, singapore, ohio, etc.)
+    branch: main
+
+    healthCheckPath: /health
+
+    # Environment variables — set sensitive values in Render Dashboard
+    # under Environment → Secret Files / Environment Variables.
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: FIREBASE_PROJECT_ID
+        value: snapinfo-53272          # Update for your project
+
+      # Set these as SECRET env vars in Render Dashboard (never commit values):
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false                    # Render prompts you to fill this in
+      - key: EXPO_ACCESS_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "https://snapinfo.app,http://localhost:8081"
+
+      # Scheduler — poll every 60 seconds for due campaigns
+      - key: SCHEDULER_POLL_INTERVAL_MS
+        value: "60000"
+      - key: SEND_CONCURRENCY
+        value: "3"
+      - key: MAX_CHUNK_RETRIES
+        value: "3"
+      - key: RETRY_BASE_DELAY_MS
+        value: "2000"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: "60"
