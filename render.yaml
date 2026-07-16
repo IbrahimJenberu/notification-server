@@ -30,7 +30,7 @@ services:
       - key: EXPO_ACCESS_TOKEN
         sync: false
       - key: ALLOWED_ORIGINS
-        value: "https://snapinfo.app,http://localhost:8081"
+        value: "https://snapinfo.app,http://localhost:8081,http://10.10.20.47:8081"
 
       # Scheduler — poll every 60 seconds for due campaigns
       - key: SCHEDULER_POLL_INTERVAL_MS
