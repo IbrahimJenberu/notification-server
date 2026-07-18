@@ -6,6 +6,28 @@ let _db: admin.firestore.Firestore | null = null;
 export function initFirebase(): void {
   if (admin.apps.length > 0) return;
 
+  // Attempt 1: individual env vars (most reliable on Render — no JSON parsing issues)
+  if (
+    process.env.FIREBASE_CLIENT_EMAIL &&
+    process.env.FIREBASE_PRIVATE_KEY &&
+    process.env.FIREBASE_PROJECT_ID
+  ) {
+    // Render stores env vars as-is but may or may not escape \n in private keys.
+    // Normalize: replace literal \n sequences AND actual newlines to ensure PEM format.
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+      .replace(/\\n/g, '\n');   // literal \n → real newline (PEM format)
+
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey,
+      }),
+    });
+    return;
+  }
+
+  // Attempt 2: full JSON string env var
   if (env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     // Render's env var UI sometimes converts literal \n sequences into real
     // newlines inside the JSON string, which breaks JSON.parse(). We normalize

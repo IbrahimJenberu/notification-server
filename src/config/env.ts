@@ -5,6 +5,9 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().min(1, 'FIREBASE_PROJECT_ID is required'),
   FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+  // Individual credential fields (alternative to FIREBASE_SERVICE_ACCOUNT_JSON)
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z.string().optional(),
 
   // Server
   PORT: z.coerce.number().int().positive().default(3001),
