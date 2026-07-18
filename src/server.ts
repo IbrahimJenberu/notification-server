@@ -8,6 +8,7 @@ import { globalRateLimit } from './middleware/rateLimit';
 import { errorHandler } from './middleware/errorHandler';
 import { campaignsRouter } from './routes/campaigns';
 import { healthRouter } from './routes/health';
+import { usersRouter } from './routes/users';
 import { startScheduler, stopScheduler } from './scheduler';
 import { log } from './utils/logger';
 
@@ -53,6 +54,7 @@ app.use(globalRateLimit);
 // ---------------------------------------------------------------------------
 app.use('/', healthRouter);
 app.use('/campaigns', campaignsRouter);
+app.use('/users', usersRouter);
 
 // 404 handler
 app.use((_req, res) => {
