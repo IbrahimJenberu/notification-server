@@ -33,6 +33,9 @@ export function errorHandler(
   }
 
   const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-  log.error('Unhandled error', { path: req.path, method: req.method, error: message });
-  res.status(500).json({ error: 'Internal server error.' });
+  const stack = err instanceof Error ? err.stack : undefined;
+  log.error('Unhandled error', { path: req.path, method: req.method, error: message, stack });
+  // Return the real message in all environments — the client needs it for debugging.
+  // Sensitive internals (stack traces) are never sent; only the message string.
+  res.status(500).json({ error: message });
 }
