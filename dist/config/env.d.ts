@@ -14,6 +14,14 @@ export declare const env: {
     FIREBASE_CLIENT_EMAIL?: string | undefined;
     FIREBASE_PRIVATE_KEY?: string | undefined;
     EXPO_ACCESS_TOKEN?: string | undefined;
+    SMTP_HOST?: string | undefined;
+    SMTP_PORT?: number | undefined;
+    SMTP_USER?: string | undefined;
+    SMTP_PASS?: string | undefined;
+    EMAIL_FROM?: string | undefined;
+    EMAIL_FROM_NAME?: string | undefined;
+    APP_NAME?: string | undefined;
+    APP_URL?: string | undefined;
 };
 export type Env = typeof env;
 //# sourceMappingURL=env.d.ts.map
