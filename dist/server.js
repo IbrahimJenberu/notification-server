@@ -13,6 +13,7 @@ const rateLimit_1 = require("./middleware/rateLimit");
 const errorHandler_1 = require("./middleware/errorHandler");
 const campaigns_1 = require("./routes/campaigns");
 const health_1 = require("./routes/health");
+const users_1 = require("./routes/users");
 const scheduler_1 = require("./scheduler");
 const logger_1 = require("./utils/logger");
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ app.use(rateLimit_1.globalRateLimit);
 // ---------------------------------------------------------------------------
 app.use('/', health_1.healthRouter);
 app.use('/campaigns', campaigns_1.campaignsRouter);
+app.use('/users', users_1.usersRouter);
 // 404 handler
 app.use((_req, res) => {
     res.status(404).json({ error: 'Route not found.' });

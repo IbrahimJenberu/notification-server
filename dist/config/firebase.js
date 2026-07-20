@@ -42,18 +42,68 @@ let _db = null;
 function initFirebase() {
     if (admin.apps.length > 0)
         return;
-    if (env_1.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-        const serviceAccount = JSON.parse(env_1.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    const hasClientEmail = Boolean(process.env.FIREBASE_CLIENT_EMAIL);
+    const hasPrivateKey = Boolean(process.env.FIREBASE_PRIVATE_KEY);
+    const hasProjectId = Boolean(process.env.FIREBASE_PROJECT_ID);
+    const hasJsonString = Boolean(env_1.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    const hasAdc = Boolean(env_1.env.GOOGLE_APPLICATION_CREDENTIALS);
+    // Always log which path will be taken — visible in Render logs for debugging
+    console.log('[Firebase Init] credential detection:', {
+        hasClientEmail,
+        hasPrivateKey,
+        hasProjectId,
+        hasJsonString,
+        hasAdc,
+        clientEmailPrefix: process.env.FIREBASE_CLIENT_EMAIL?.slice(0, 25) ?? '(none)',
+        privateKeyStart: process.env.FIREBASE_PRIVATE_KEY?.slice(0, 30) ?? '(none)',
+    });
+    // ── Path 1: three individual env vars (most reliable on Render) ──────────
+    if (hasClientEmail && hasPrivateKey && hasProjectId) {
+        // Render env vars may store \n as literal backslash-n — normalize to real newlines
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+        console.log('[Firebase Init] → using FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY');
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey,
+            }),
+        });
+        return;
+    }
+    // ── Path 2: full JSON env var ─────────────────────────────────────────────
+    if (hasJsonString) {
+        console.log('[Firebase Init] → using FIREBASE_SERVICE_ACCOUNT_JSON');
+        let rawJson = env_1.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        // Normalize private_key newlines before parsing
+        rawJson = rawJson.replace(/"private_key"\s*:\s*"([\s\S]*?)(?<!\\)"/, (_match, keyContent) => {
+            const normalized = keyContent
+                .replace(/\r\n/g, '\n')
+                .replace(/\n/g, '\\n')
+                .replace(/\\\\n/g, '\\n');
+            return `"private_key": "${normalized}"`;
+        });
+        let serviceAccount;
+        try {
+            serviceAccount = JSON.parse(rawJson);
+        }
+        catch (e) {
+            throw new Error(`FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON. ` +
+                `Parse error: ${e instanceof Error ? e.message : String(e)}`);
+        }
         admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        return;
     }
-    else if (env_1.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        // ADC — file path set via GOOGLE_APPLICATION_CREDENTIALS env var
+    // ── Path 3: Application Default Credentials (file on disk) ───────────────
+    if (hasAdc) {
+        console.log('[Firebase Init] → using GOOGLE_APPLICATION_CREDENTIALS file');
         admin.initializeApp({ credential: admin.credential.applicationDefault() });
+        return;
     }
-    else {
-        // Render / Railway / Fly.io: inject service account JSON via env var
-        throw new Error('Firebase Admin SDK: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS');
-    }
+    throw new Error('[Firebase Init] No credentials found. Set one of:\n' +
+        '  • FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY + FIREBASE_PROJECT_ID\n' +
+        '  • FIREBASE_SERVICE_ACCOUNT_JSON\n' +
+        '  • GOOGLE_APPLICATION_CREDENTIALS');
 }
 function getDb() {
     if (!_db) {

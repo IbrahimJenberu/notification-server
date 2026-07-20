@@ -30,6 +30,16 @@ const envSchema = z.object({
   SEND_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(3),
   MAX_CHUNK_RETRIES: z.coerce.number().int().min(1).max(10).default(3),
   RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(2_000),
+
+  // SMTP (Brevo)
+  SMTP_HOST:      z.string().optional(),
+  SMTP_PORT:      z.coerce.number().int().positive().optional(),
+  SMTP_USER:      z.string().optional(),
+  SMTP_PASS:      z.string().optional(),
+  EMAIL_FROM:     z.string().optional(),
+  EMAIL_FROM_NAME: z.string().optional(),
+  APP_NAME:       z.string().optional(),
+  APP_URL:        z.string().optional(),
 });
 
 function loadEnv() {

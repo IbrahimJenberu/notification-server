@@ -11,6 +11,8 @@ export declare const env: {
     RETRY_BASE_DELAY_MS: number;
     FIREBASE_SERVICE_ACCOUNT_JSON?: string | undefined;
     GOOGLE_APPLICATION_CREDENTIALS?: string | undefined;
+    FIREBASE_CLIENT_EMAIL?: string | undefined;
+    FIREBASE_PRIVATE_KEY?: string | undefined;
     EXPO_ACCESS_TOKEN?: string | undefined;
 };
 export type Env = typeof env;

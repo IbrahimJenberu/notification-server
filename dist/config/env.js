@@ -7,6 +7,9 @@ const envSchema = zod_1.z.object({
     FIREBASE_PROJECT_ID: zod_1.z.string().min(1, 'FIREBASE_PROJECT_ID is required'),
     FIREBASE_SERVICE_ACCOUNT_JSON: zod_1.z.string().optional(),
     GOOGLE_APPLICATION_CREDENTIALS: zod_1.z.string().optional(),
+    // Individual credential fields (alternative to FIREBASE_SERVICE_ACCOUNT_JSON)
+    FIREBASE_CLIENT_EMAIL: zod_1.z.string().optional(),
+    FIREBASE_PRIVATE_KEY: zod_1.z.string().optional(),
     // Server
     PORT: zod_1.z.coerce.number().int().positive().default(3001),
     NODE_ENV: zod_1.z.enum(['development', 'production', 'test']).default('production'),
