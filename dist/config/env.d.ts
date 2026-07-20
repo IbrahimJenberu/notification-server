@@ -22,6 +22,7 @@ export declare const env: {
     EMAIL_FROM_NAME?: string | undefined;
     APP_NAME?: string | undefined;
     APP_URL?: string | undefined;
+    BREVO_API_KEY?: string | undefined;
 };
 export type Env = typeof env;
 //# sourceMappingURL=env.d.ts.map

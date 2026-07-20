@@ -26,7 +26,7 @@ const envSchema = zod_1.z.object({
     SEND_CONCURRENCY: zod_1.z.coerce.number().int().min(1).max(10).default(3),
     MAX_CHUNK_RETRIES: zod_1.z.coerce.number().int().min(1).max(10).default(3),
     RETRY_BASE_DELAY_MS: zod_1.z.coerce.number().int().positive().default(2_000),
-    // SMTP (Brevo)
+    // SMTP (Brevo) — used as fallback env var names
     SMTP_HOST: zod_1.z.string().optional(),
     SMTP_PORT: zod_1.z.coerce.number().int().positive().optional(),
     SMTP_USER: zod_1.z.string().optional(),
@@ -35,6 +35,8 @@ const envSchema = zod_1.z.object({
     EMAIL_FROM_NAME: zod_1.z.string().optional(),
     APP_NAME: zod_1.z.string().optional(),
     APP_URL: zod_1.z.string().optional(),
+    // Brevo HTTP API key (preferred over SMTP — works on Render free tier)
+    BREVO_API_KEY: zod_1.z.string().optional(),
 });
 function loadEnv() {
     const parsed = envSchema.safeParse(process.env);
