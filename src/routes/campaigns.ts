@@ -7,6 +7,7 @@ import {
   scheduleCampaign,
   cancelCampaign,
   retryCampaign,
+  trackAnalyticsEvent,
 } from '../services/campaignService';
 import { AppError } from '../middleware/errorHandler';
 import { log } from '../utils/logger';
@@ -50,6 +51,8 @@ campaignsRouter.post(
         campaignId,
         sentCount: result.sentCount,
         failedCount: result.failedCount,
+        deliveredCount: result.deliveredCount,
+        inAppCount: result.inAppCount,
       });
     } catch (err) {
       next(err);
@@ -129,9 +132,47 @@ campaignsRouter.post(
         campaignId,
         sentCount: result.sentCount,
         failedCount: result.failedCount,
+        deliveredCount: result.deliveredCount,
+        inAppCount: result.inAppCount,
       });
     } catch (err) {
       next(err);
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// POST /campaigns/:campaignId/analytics
+//
+// Client-side event tracking — called by the app when a user opens a
+// notification or taps the linked post inside it. The client fires this
+// endpoint; the server atomically increments the matching counter on the
+// campaign document.
+//
+// Body: { event: 'opened' | 'postOpened', uid?: string }
+// ---------------------------------------------------------------------------
+
+const analyticsBodySchema = z.object({
+  event: z.enum(['opened', 'postOpened']),
+  uid: z.string().optional(),
+});
+
+campaignsRouter.post('/:campaignId/analytics', async (req, res, next) => {
+  try {
+    const { campaignId } = req.params;
+    const tenantId = req.query['tenantId'] as string | undefined;
+
+    if (!tenantId) throw new AppError(400, 'Query param tenantId is required.', 'MISSING_TENANT');
+    if (!campaignId) throw new AppError(400, 'Campaign ID is required.', 'MISSING_ID');
+
+    const body = analyticsBodySchema.parse(req.body);
+
+    log.info('POST /campaigns/:id/analytics', { campaignId, tenantId, event: body.event, uid: body.uid });
+
+    await trackAnalyticsEvent(tenantId, campaignId, body.event, body.uid);
+
+    res.json({ success: true, campaignId, event: body.event });
+  } catch (err) {
+    next(err);
+  }
+});

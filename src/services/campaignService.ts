@@ -27,6 +27,15 @@ interface Campaign {
   scheduledAt?: admin.firestore.Timestamp | null;
 }
 
+// Result shape returned from dispatch / retry — extended with deliveredCount
+// and inAppCount so callers (routes, tests) have the full picture.
+export interface DispatchResult {
+  sentCount: number;
+  failedCount: number;
+  deliveredCount: number;
+  inAppCount: number;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch — send immediately
 // ---------------------------------------------------------------------------
@@ -35,8 +44,11 @@ export async function dispatchCampaign(
   tenantId: string,
   campaignId: string,
   dispatchedBy: string
-): Promise<{ sentCount: number; failedCount: number }> {
+): Promise<DispatchResult> {
   const ref = campaignRef(tenantId, campaignId);
+
+  // ── Stage 1: Load campaign ───────────────────────────────────────────────
+  log.info('dispatchCampaign: loading campaign', { tenantId, campaignId, dispatchedBy });
   const snap = await ref.get();
 
   if (!snap.exists) {
@@ -53,18 +65,39 @@ export async function dispatchCampaign(
     );
   }
 
-  // Idempotency guard — mark sending first, preventing double-dispatch
+  log.info('dispatchCampaign: campaign loaded', {
+    tenantId,
+    campaignId,
+    title: campaign.title,
+    audience: campaign.audience,
+    status: campaign.status,
+  });
+
+  // ── Stage 2: Idempotency guard ───────────────────────────────────────────
   await ref.update({
     status: 'sending',
     updatedAt: FieldValue.serverTimestamp(),
   });
+  log.info('dispatchCampaign: status → sending', { tenantId, campaignId });
 
+  // ── Stage 3: Resolve device tokens ──────────────────────────────────────
   const audience: AudienceTarget = campaign.audience ?? { type: 'all', value: 'all' };
 
   let tokens: string[];
   try {
     tokens = await resolveTokens(tenantId, audience);
+    log.info('dispatchCampaign: tokens resolved', {
+      tenantId,
+      campaignId,
+      audienceType: audience.type,
+      tokenCount: tokens.length,
+    });
   } catch (err) {
+    log.error('dispatchCampaign: token resolution failed', {
+      tenantId,
+      campaignId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     await ref.update({ status: 'failed', updatedAt: FieldValue.serverTimestamp() });
     throw err;
   }
@@ -72,25 +105,70 @@ export async function dispatchCampaign(
   const data: Record<string, string> = { campaignId, tenantId };
   if (campaign.linkedPostId) data.postId = campaign.linkedPostId;
 
+  // ── Stage 4a: No push tokens — in-app inbox only ─────────────────────────
+  // Even without push tokens the notification IS delivered: we write it to
+  // the /notifications collection so it appears in every user's in-app inbox
+  // the next time they open the app. We count this as 1 in-app delivery so
+  // the dashboard never reports 0 when a campaign actually reached users.
   if (tokens.length === 0) {
-    log.warn('dispatchCampaign: no eligible push tokens — writing inbox record only', {
-      tenantId, campaignId,
+    log.info('dispatchCampaign: no push tokens — in-app delivery only', {
+      tenantId,
+      campaignId,
     });
-    await ref.update({
-      status: 'sent',
-      sentAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      'statistics.sentCount': 0,
-    });
-    // Still write notification inbox record so in-app users see it
-    void writeNotificationRecord(tenantId, campaignId, {
+
+    // Write inbox record first — then count it
+    const inboxWritten = await writeNotificationRecord(tenantId, campaignId, {
       title: campaign.title,
       message: campaign.message,
       imageUrl: campaign.imageUrl ?? null,
       postId: campaign.linkedPostId ?? null,
     });
-    return { sentCount: 0, failedCount: 0 };
+
+    // inAppCount = 1 if the inbox write succeeded, 0 if it failed
+    const inAppCount = inboxWritten ? 1 : 0;
+
+    const update: Record<string, unknown> = {
+      status: 'sent',
+      sentAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      // sentCount = push tokens reached (0 here)
+      // deliveredCount = total successful deliveries (push + in-app)
+      'statistics.sentCount': 0,
+      'statistics.deliveredCount': FieldValue.increment(inAppCount),
+      'statistics.inAppCount': FieldValue.increment(inAppCount),
+    };
+
+    await ref.update(update);
+
+    void writeAuditLog(tenantId, {
+      action: 'campaign.dispatch',
+      campaignId,
+      performedBy: dispatchedBy,
+      result: 'sent',
+      meta: {
+        sentCount: 0,
+        failedCount: 0,
+        deliveredCount: inAppCount,
+        inAppCount,
+        reason: 'no_push_tokens',
+      },
+    });
+
+    log.info('dispatchCampaign: complete (in-app only)', {
+      tenantId,
+      campaignId,
+      inAppCount,
+    });
+
+    return { sentCount: 0, failedCount: 0, deliveredCount: inAppCount, inAppCount };
   }
+
+  // ── Stage 4b: Push delivery ──────────────────────────────────────────────
+  log.info('dispatchCampaign: sending push notifications', {
+    tenantId,
+    campaignId,
+    tokenCount: tokens.length,
+  });
 
   const result = await sendToTokens(
     tokens,
@@ -104,11 +182,36 @@ export async function dispatchCampaign(
     campaignId
   );
 
-  const newStatus = result.failedCount === 0 || result.sentCount > 0 ? 'sent' : 'failed';
+  log.info('dispatchCampaign: push send complete', {
+    tenantId,
+    campaignId,
+    sentCount: result.sentCount,
+    failedCount: result.failedCount,
+  });
+
+  // ── Stage 5: Write inbox record ──────────────────────────────────────────
+  const inboxWritten = await writeNotificationRecord(tenantId, campaignId, {
+    title: campaign.title,
+    message: campaign.message,
+    imageUrl: campaign.imageUrl ?? null,
+    postId: campaign.linkedPostId ?? null,
+  });
+  const inAppCount = inboxWritten ? 1 : 0;
+
+  // ── Stage 6: Persist statistics ──────────────────────────────────────────
+  // deliveredCount = successfully sent push notifications + in-app inbox write.
+  // This gives an accurate "total reaches" number rather than conflating
+  // push-specific metrics with in-app delivery.
+  const deliveredCount = result.sentCount + inAppCount;
+  const newStatus =
+    result.failedCount === 0 || result.sentCount > 0 ? 'sent' : 'failed';
+
   const update: Record<string, unknown> = {
     status: newStatus,
     updatedAt: FieldValue.serverTimestamp(),
     'statistics.sentCount': FieldValue.increment(result.sentCount),
+    'statistics.deliveredCount': FieldValue.increment(deliveredCount),
+    'statistics.inAppCount': FieldValue.increment(inAppCount),
     'statistics.errorCount': FieldValue.increment(result.failedCount),
   };
 
@@ -122,29 +225,37 @@ export async function dispatchCampaign(
     });
   }
 
+  await ref.update(update);
+
   void writeAuditLog(tenantId, {
     action: 'campaign.dispatch',
     campaignId,
     performedBy: dispatchedBy,
     result: newStatus,
-    meta: { sentCount: result.sentCount, failedCount: result.failedCount },
-  });
-
-  await ref.update(update);
-
-  // Write to /notifications so in-app inbox shows this notification
-  void writeNotificationRecord(tenantId, campaignId, {
-    title: campaign.title,
-    message: campaign.message,
-    imageUrl: campaign.imageUrl ?? null,
-    postId: campaign.linkedPostId ?? null,
+    meta: {
+      sentCount: result.sentCount,
+      failedCount: result.failedCount,
+      deliveredCount,
+      inAppCount,
+    },
   });
 
   log.info('dispatchCampaign: complete', {
-    tenantId, campaignId, sentCount: result.sentCount, failedCount: result.failedCount,
+    tenantId,
+    campaignId,
+    sentCount: result.sentCount,
+    failedCount: result.failedCount,
+    deliveredCount,
+    inAppCount,
+    status: newStatus,
   });
 
-  return { sentCount: result.sentCount, failedCount: result.failedCount };
+  return {
+    sentCount: result.sentCount,
+    failedCount: result.failedCount,
+    deliveredCount,
+    inAppCount,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +334,7 @@ export async function retryCampaign(
   tenantId: string,
   campaignId: string,
   retriedBy: string
-): Promise<{ sentCount: number; failedCount: number }> {
+): Promise<DispatchResult> {
   const ref = campaignRef(tenantId, campaignId);
   const snap = await ref.get();
   if (!snap.exists) throw new AppError(404, `Campaign ${campaignId} not found.`, 'NOT_FOUND');
@@ -233,8 +344,58 @@ export async function retryCampaign(
     throw new AppError(422, `Only failed campaigns can be retried. Current status: '${campaign.status}'.`, 'INVALID_STATE');
   }
 
+  log.info('retryCampaign: resetting failure details', { tenantId, campaignId, retriedBy });
   await ref.update({ failureDetails: [], updatedAt: FieldValue.serverTimestamp() });
   return dispatchCampaign(tenantId, campaignId, retriedBy);
+}
+
+// ---------------------------------------------------------------------------
+// Analytics event tracking
+//
+// Called by the client via POST /campaigns/:id/analytics when a user opens
+// a notification or taps the linked post. Atomically increments the
+// matching counter so the dashboard shows real engagement numbers.
+// ---------------------------------------------------------------------------
+
+export type AnalyticsEvent = 'opened' | 'postOpened';
+
+export async function trackAnalyticsEvent(
+  tenantId: string,
+  campaignId: string,
+  event: AnalyticsEvent,
+  uid?: string
+): Promise<void> {
+  const ref = campaignRef(tenantId, campaignId);
+
+  try {
+    const fieldMap: Record<AnalyticsEvent, string> = {
+      opened: 'statistics.openCount',
+      postOpened: 'statistics.postOpenCount',
+    };
+
+    await ref.update({
+      [fieldMap[event]]: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    void writeAuditLog(tenantId, {
+      action: `campaign.analytics.${event}`,
+      campaignId,
+      performedBy: uid ?? 'anonymous',
+      result: 'recorded',
+      meta: { event, uid: uid ?? null },
+    });
+
+    log.info('trackAnalyticsEvent: recorded', { tenantId, campaignId, event, uid });
+  } catch (err) {
+    // Non-fatal: analytics tracking failure must never surface to the user.
+    log.warn('trackAnalyticsEvent: failed (non-fatal)', {
+      tenantId,
+      campaignId,
+      event,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -250,15 +411,18 @@ interface NotificationRecordInput {
 
 /**
  * Writes to tenants/{tenantId}/notifications so the client in-app inbox
- * displays dispatched campaigns.  Uses campaignId as doc ID — idempotent on retry.
- * Non-blocking; failures are logged but never surfaced to caller.
+ * displays dispatched campaigns. Uses campaignId as doc ID — idempotent on
+ * retry. Returns true on success, false on failure (failure is non-fatal;
+ * the caller uses the return value to determine inAppCount contribution).
  */
 async function writeNotificationRecord(
   tenantId: string,
   campaignId: string,
   record: NotificationRecordInput
-): Promise<void> {
+): Promise<boolean> {
   try {
+    log.info('writeNotificationRecord: writing inbox record', { tenantId, campaignId });
+
     await db()
       .collection(`tenants/${tenantId}/notifications`)
       .doc(campaignId)
@@ -273,12 +437,16 @@ async function writeNotificationRecord(
         },
         { merge: true }
       );
-    log.info('writeNotificationRecord: written', { tenantId, campaignId });
+
+    log.info('writeNotificationRecord: success', { tenantId, campaignId });
+    return true;
   } catch (err) {
     log.warn('writeNotificationRecord: failed (non-fatal)', {
-      tenantId, campaignId,
+      tenantId,
+      campaignId,
       error: err instanceof Error ? err.message : String(err),
     });
+    return false;
   }
 }
 
@@ -303,6 +471,7 @@ async function writeAuditLog(tenantId: string, entry: AuditEntry): Promise<void>
         timestamp: FieldValue.serverTimestamp(),
         source: 'notification-server',
       });
+    log.debug('writeAuditLog: written', { tenantId, action: entry.action, campaignId: entry.campaignId });
   } catch (err) {
     log.warn('writeAuditLog: failed to write', {
       error: err instanceof Error ? err.message : String(err),
