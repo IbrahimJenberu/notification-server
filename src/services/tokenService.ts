@@ -1,4 +1,5 @@
 import type { firestore as FirestoreNS } from 'firebase-admin';
+import { Expo } from 'expo-server-sdk';
 import { getDb } from '../config/firebase';
 import { log } from '../utils/logger';
 
@@ -33,55 +34,47 @@ export interface AudienceTarget {
 /**
  * Resolves the full set of Expo push tokens for a given audience target.
  *
- * Backwards-compatible: old token documents (written before the
- * notificationPermission field was added) don't have that field.
- * We do two queries and merge — one for explicitly 'granted', one for
- * documents where the field is absent (legacy registrations, assumed granted
- * since the user voluntarily opened the app and a token was obtained).
+ * Backwards-compatible: retrieves all documents matching the audience filter,
+ * includes both authenticated users and guest devices (guest_${deviceId}),
+ * excludes only explicitly 'denied' devices, and validates tokens.
  */
-export async function resolveTokens(
-  tenantId: string,
-  audience: AudienceTarget
-): Promise<string[]> {
+export async function resolveTokens(tenantId: string, audience: AudienceTarget): Promise<string[]> {
   const db = getDb();
   const col = db.collection(`tenants/${tenantId}/deviceTokens`);
 
   try {
-    // Build the audience filter (applied to both granted + legacy queries)
     const audienceFilter = buildAudienceFilter(col, audience);
-
-    // Query 1: explicitly granted
-    const grantedSnap = await audienceFilter
-      .where('notificationPermission', '==', 'granted')
-      .get();
-
-    // Query 2: legacy documents with no notificationPermission field
-    // Firestore doesn't support "field does not exist" natively, so we use
-    // a broad query and filter client-side on the small result set.
-    const allSnap = await audienceFilter.get();
+    const snap = await audienceFilter.get();
 
     const tokens = new Set<string>();
+    let deniedCount = 0;
+    let malformedCount = 0;
 
-    // Process explicitly granted
-    for (const d of grantedSnap.docs) {
-      const token = extractToken(d);
-      if (token) tokens.add(token);
-    }
-
-    // Process legacy (no notificationPermission field) — treat as granted
-    for (const d of allSnap.docs) {
+    for (const d of snap.docs) {
       const data = d.data() as Partial<DeviceTokenDoc>;
-      if (data.notificationPermission === undefined || data.notificationPermission === null) {
-        const token = extractToken(d);
-        if (token) tokens.add(token);
+      // Skip only explicitly denied permissions
+      if (data.notificationPermission === 'denied') {
+        deniedCount++;
+        continue;
+      }
+
+      const token = extractToken(d);
+      if (token) {
+        tokens.add(token);
+      } else {
+        malformedCount++;
       }
     }
 
     const result = [...tokens];
-    log.info('resolveTokens: resolved', {
+    log.info('[TOKEN_RESOLUTION]', {
       tenantId,
       audienceType: audience.type,
-      count: result.length,
+      audienceValue: audience.value,
+      totalDocsFound: snap.docs.length,
+      deniedCount,
+      malformedCount,
+      validTokenCount: result.length,
     });
     return result;
   } catch (err) {
@@ -98,29 +91,36 @@ function buildAudienceFilter(
   col: FirebaseFirestore.CollectionReference,
   audience: AudienceTarget
 ): FirebaseFirestore.Query {
-  if (audience.type === 'platform') {
+  if (audience.type === 'platform' && audience.value && audience.value !== 'all') {
     return col.where('platform', '==', audience.value);
   }
-  if (audience.type === 'role') {
+  if (audience.type === 'role' && audience.value && audience.value !== 'all') {
     return col.where('role', '==', audience.value);
   }
-  if (audience.type === 'topic') {
+  if (audience.type === 'topic' && audience.value && audience.value !== 'all') {
     return col.where('subscribedTopics', 'array-contains', audience.value);
   }
-  // 'all' — no additional filter
+  // 'all' or wildcard value — query all device tokens
   return col as unknown as FirebaseFirestore.Query;
 }
 
 function extractToken(doc: FirebaseFirestore.QueryDocumentSnapshot): string | null {
   const data = doc.data() as Partial<DeviceTokenDoc>;
-  // New format: expoPushToken field; legacy format: doc.id IS the token
-  const token = data.expoPushToken ?? doc.id;
-  const decoded = decodeURIComponent(token);
-  return isValidExpoToken(decoded) ? decoded : isValidExpoToken(token) ? token : null;
+  const rawToken = data.expoPushToken ?? (doc.data() as any)['pushToken'] ?? doc.id;
+  if (!rawToken || typeof rawToken !== 'string') return null;
+
+  const decoded = decodeURIComponent(rawToken);
+
+  if (Expo.isExpoPushToken(decoded) || isValidExpoToken(decoded)) {
+    return decoded;
+  }
+  if (Expo.isExpoPushToken(rawToken) || isValidExpoToken(rawToken)) {
+    return rawToken;
+  }
+  return null;
 }
 
 function isValidExpoToken(token: string): boolean {
-  // ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxxxx] or ExpoPushToken[...]
   return /^ExponentPushToken\[.+\]$/.test(token) || /^ExpoPushToken\[.+\]$/.test(token);
 }
 
