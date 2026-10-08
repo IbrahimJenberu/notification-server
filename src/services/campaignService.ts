@@ -203,8 +203,7 @@ export async function dispatchCampaign(
   // This gives an accurate "total reaches" number rather than conflating
   // push-specific metrics with in-app delivery.
   const deliveredCount = result.sentCount + inAppCount;
-  const newStatus =
-    result.failedCount === 0 || result.sentCount > 0 ? 'sent' : 'failed';
+  const newStatus = result.failedCount === 0 || result.sentCount > 0 ? 'sent' : 'failed';
 
   const update: Record<string, unknown> = {
     status: newStatus,
@@ -227,6 +226,22 @@ export async function dispatchCampaign(
 
   await ref.update(update);
 
+  log.info('[NOTIFICATION_DISPATCH]', {
+    tenantId,
+    campaignId,
+    targetAudience: audience,
+    deviceTokensFound: tokens.length,
+    validTokens: tokens.length,
+    invalidTokens: result.invalidTokens.length,
+    batches: Math.ceil(tokens.length / 100),
+    expoRequests: Math.ceil(tokens.length / 100),
+    expoTicketsAccepted: result.sentCount,
+    expoTicketsRejected: result.failedCount,
+    invalidDeviceTokensRemoved: result.invalidTokens.length,
+    finalSentCount: result.sentCount,
+    finalFailedCount: result.failedCount,
+  });
+
   void writeAuditLog(tenantId, {
     action: 'campaign.dispatch',
     campaignId,
@@ -238,16 +253,6 @@ export async function dispatchCampaign(
       deliveredCount,
       inAppCount,
     },
-  });
-
-  log.info('dispatchCampaign: complete', {
-    tenantId,
-    campaignId,
-    sentCount: result.sentCount,
-    failedCount: result.failedCount,
-    deliveredCount,
-    inAppCount,
-    status: newStatus,
   });
 
   return {
@@ -274,7 +279,11 @@ export async function scheduleCampaign(
 
   const campaign = snap.data() as Campaign;
   if (!['draft', 'cancelled'].includes(campaign.status)) {
-    throw new AppError(422, `Cannot schedule a campaign with status '${campaign.status}'.`, 'INVALID_STATE');
+    throw new AppError(
+      422,
+      `Cannot schedule a campaign with status '${campaign.status}'.`,
+      'INVALID_STATE'
+    );
   }
   if (scheduledAt <= new Date()) {
     throw new AppError(400, 'scheduledAt must be a future date/time.', 'INVALID_DATE');
@@ -287,8 +296,11 @@ export async function scheduleCampaign(
   });
 
   void writeAuditLog(tenantId, {
-    action: 'campaign.schedule', campaignId, performedBy: scheduledBy,
-    result: 'scheduled', meta: { scheduledAt: scheduledAt.toISOString() },
+    action: 'campaign.schedule',
+    campaignId,
+    performedBy: scheduledBy,
+    result: 'scheduled',
+    meta: { scheduledAt: scheduledAt.toISOString() },
   });
 
   log.info('scheduleCampaign: scheduled', { tenantId, campaignId, scheduledAt });
@@ -309,7 +321,11 @@ export async function cancelCampaign(
 
   const campaign = snap.data() as Campaign;
   if (campaign.status !== 'scheduled') {
-    throw new AppError(422, `Only scheduled campaigns can be cancelled. Current status: '${campaign.status}'.`, 'INVALID_STATE');
+    throw new AppError(
+      422,
+      `Only scheduled campaigns can be cancelled. Current status: '${campaign.status}'.`,
+      'INVALID_STATE'
+    );
   }
 
   await ref.update({
@@ -319,8 +335,11 @@ export async function cancelCampaign(
   });
 
   void writeAuditLog(tenantId, {
-    action: 'campaign.cancel', campaignId, performedBy: cancelledBy,
-    result: 'cancelled', meta: {},
+    action: 'campaign.cancel',
+    campaignId,
+    performedBy: cancelledBy,
+    result: 'cancelled',
+    meta: {},
   });
 
   log.info('cancelCampaign: cancelled', { tenantId, campaignId });
@@ -341,7 +360,11 @@ export async function retryCampaign(
 
   const campaign = snap.data() as Campaign;
   if (campaign.status !== 'failed') {
-    throw new AppError(422, `Only failed campaigns can be retried. Current status: '${campaign.status}'.`, 'INVALID_STATE');
+    throw new AppError(
+      422,
+      `Only failed campaigns can be retried. Current status: '${campaign.status}'.`,
+      'INVALID_STATE'
+    );
   }
 
   log.info('retryCampaign: resetting failure details', { tenantId, campaignId, retriedBy });
@@ -423,20 +446,17 @@ async function writeNotificationRecord(
   try {
     log.info('writeNotificationRecord: writing inbox record', { tenantId, campaignId });
 
-    await db()
-      .collection(`tenants/${tenantId}/notifications`)
-      .doc(campaignId)
-      .set(
-        {
-          title: record.title,
-          message: record.message,
-          imageUrl: record.imageUrl,
-          postId: record.postId,
-          campaignId,
-          sentAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    await db().collection(`tenants/${tenantId}/notifications`).doc(campaignId).set(
+      {
+        title: record.title,
+        message: record.message,
+        imageUrl: record.imageUrl,
+        postId: record.postId,
+        campaignId,
+        sentAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     log.info('writeNotificationRecord: success', { tenantId, campaignId });
     return true;
@@ -471,7 +491,11 @@ async function writeAuditLog(tenantId: string, entry: AuditEntry): Promise<void>
         timestamp: FieldValue.serverTimestamp(),
         source: 'notification-server',
       });
-    log.debug('writeAuditLog: written', { tenantId, action: entry.action, campaignId: entry.campaignId });
+    log.debug('writeAuditLog: written', {
+      tenantId,
+      action: entry.action,
+      campaignId: entry.campaignId,
+    });
   } catch (err) {
     log.warn('writeAuditLog: failed to write', {
       error: err instanceof Error ? err.message : String(err),
