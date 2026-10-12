@@ -344,80 +344,557 @@ const LANDING_PAGE_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hab Info - Services &amp; Legal</title>
+  <title>Hab Info - Modern News &amp; Intelligent Stories</title>
+  <meta name="description" content="Hab Info delivers fast, curated news, breaking alerts, and distraction-free reading on Android and iOS.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #0F6CBD;
-      --bg: #F8FAFC;
-      --card-bg: #FFFFFF;
-      --text-main: #0F172A;
-      --text-muted: #475569;
-      --border: #E2E8F0;
+      --bg-dark: #090D16;
+      --bg-card: #0F172A;
+      --bg-card-hover: #162036;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(56, 189, 248, 0.3);
+      --primary: #38BDF8;
+      --primary-gradient: linear-gradient(135deg, #38BDF8 0%, #6366F1 50%, #EC4899 100%);
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--bg);
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+      background-color: var(--bg-dark);
       color: var(--text-main);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    /* Subtle background grid & glow */
+    .bg-glow {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1000px;
+      height: 500px;
+      background: radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.12) 0%, rgba(99, 102, 241, 0.05) 50%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    /* Navbar */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .logo-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284C7, #4F46E5);
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
+      font-weight: 800;
+      font-size: 20px;
+      color: #FFF;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
     }
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 48px;
-      max-width: 560px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #FFF;
+      letter-spacing: -0.02em;
     }
-    .logo {
-      width: 64px;
-      height: 64px;
-      background: #0F6CBD;
-      border-radius: 16px;
-      display: inline-flex;
+    .nav-links {
+      display: flex;
       align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 20px;
+      gap: 28px;
     }
-    h1 { font-size: 1.8rem; margin-bottom: 8px; }
-    p { color: var(--text-muted); margin-bottom: 28px; }
-    .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .btn {
-      padding: 12px 24px;
-      border-radius: 10px;
-      font-weight: 600;
+    .nav-link {
+      color: var(--text-muted);
       text-decoration: none;
       font-size: 0.95rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-link:hover {
+      color: #FFF;
+    }
+    .nav-btn {
+      padding: 10px 20px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      color: #FFF;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
       transition: all 0.2s;
     }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: #0A4B82; }
-    .btn-outline { background: white; color: var(--text-main); border: 1px solid var(--border); }
-    .btn-outline:hover { background: #F1F5F9; }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 80px 0 60px;
+    }
+    .pill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid var(--border-accent);
+      color: var(--primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+    }
+    .hero h1 {
+      font-size: 3.6rem;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+    .gradient-text {
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      max-width: 680px;
+      margin: 0 auto 36px;
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .cta-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 56px;
+    }
+    .btn-play {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: #FFF;
+      color: #090D16;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
+    }
+    .btn-play:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(255, 255, 255, 0.25);
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #FFF;
+      border: 1px solid var(--border);
+      padding: 14px 26px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    /* Phone Mockup */
+    .mockup-container {
+      max-width: 380px;
+      margin: 0 auto 80px;
+      position: relative;
+    }
+    .phone-frame {
+      background: #111827;
+      border: 4px solid #334155;
+      border-radius: 40px;
+      padding: 14px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 50px rgba(56, 189, 248, 0.2);
+    }
+    .phone-screen {
+      background: #0B1120;
+      border-radius: 28px;
+      padding: 20px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      text-align: left;
+    }
+    .phone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .phone-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: #FFF;
+    }
+    .phone-chip-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: hidden;
+    }
+    .chip {
+      background: #1E293B;
+      color: #94A3B8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+    }
+    .chip.active {
+      background: #0284C7;
+      color: #FFF;
+    }
+    .news-card-mock {
+      background: #1E293B;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .news-badge {
+      display: inline-block;
+      background: rgba(239, 68, 68, 0.2);
+      color: #F87171;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .news-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #FFF;
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+    .news-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: #64748B;
+    }
+    /* Features Grid */
+    .features-section {
+      padding: 60px 0 80px;
+    }
+    .section-header {
+      text-align: center;
+      max-width: 620px;
+      margin: 0 auto 50px;
+    }
+    .section-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .section-sub {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
+      transition: all 0.25s ease;
+    }
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-accent);
+      transform: translateY(-4px);
+    }
+    .icon-box {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+    .card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #FFF;
+    }
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    /* Contact & Store Listing Info */
+    .contact-section {
+      background: #0B1120;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 48px;
+      margin: 60px 0 80px;
+    }
+    .contact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 32px;
+      margin-top: 32px;
+    }
+    .contact-item h4 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .contact-item p, .contact-item a {
+      font-size: 1.05rem;
+      color: #FFF;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .contact-item a:hover {
+      color: var(--primary);
+    }
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 16px;
+    }
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover {
+      color: #FFF;
+    }
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.4rem; }
+      .nav-links { display: none; }
+      .contact-section { padding: 32px 20px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo">H</div>
-    <h1>Hab Info Services</h1>
-    <p>Official backend services, push dispatchers, and legal disclosures for the Hab Info mobile application.</p>
-    <div class="btn-group">
-      <a href="/privacy" class="btn btn-primary">Privacy Policy</a>
-      <a href="/terms" class="btn btn-outline">Terms of Service</a>
-      <a href="/health" class="btn btn-outline">Service Status</a>
-    </div>
+  <div class="bg-glow"></div>
+
+  <div class="wrapper">
+    <!-- Navbar -->
+    <nav>
+      <a href="/" class="logo-wrap">
+        <div class="logo-badge">H</div>
+        <span class="logo-text">Hab Info</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="/privacy" class="nav-link">Privacy Policy</a>
+        <a href="/terms" class="nav-link">Terms</a>
+        <a href="#contact" class="nav-link">Contact</a>
+      </div>
+      <a href="https://play.google.com/store/apps/details?id=com.habinfo.app" class="nav-btn">Get App</a>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero">
+      <div class="pill-tag">
+        <span class="pill-dot"></span>
+        Google Play Ready • Release v1.0.0
+      </div>
+      <h1>Curated News &amp; Breaking Alerts,<br><span class="gradient-text">Elevated Reading.</span></h1>
+      <p>
+        Experience intelligent, distraction-free news. Stay connected with real-time push alerts, offline bookmarking, and tailored editorial feeds designed for speed.
+      </p>
+      <div class="cta-group">
+        <a href="https://play.google.com/store/apps/details?id=com.habinfo.app" class="btn-play">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3.609 1.814L13.792 12 3.61 22.186a1.5 1.5 0 0 1-.61-.925V2.74a1.5 1.5 0 0 1 .609-.926zm1.484-.716l11.08 6.398-3.473 3.474-7.607-9.872zm11.08 14.394L5.093 21.89l7.607-9.872 3.473 3.474zm1.09-1.09l3.522-2.034a1.5 1.5 0 0 0 0-2.6l-3.522-2.034-3.082 3.334 3.082 3.334z"/>
+          </svg>
+          Get on Google Play
+        </a>
+        <a href="/privacy" class="btn-secondary">
+          Privacy Policy
+        </a>
+      </div>
+
+      <!-- App Preview Mockup -->
+      <div class="mockup-container">
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="phone-header">
+              <span class="phone-title">HAB INFO</span>
+              <span style="font-size: 0.75rem; color: #38BDF8; font-weight: 700;">LIVE FEED</span>
+            </div>
+            <div class="phone-chip-group">
+              <span class="chip active">Top Stories</span>
+              <span class="chip">Technology</span>
+              <span class="chip">Business</span>
+              <span class="chip">Culture</span>
+            </div>
+            <div class="news-card-mock">
+              <span class="news-badge">BREAKING</span>
+              <h4 class="news-card-title">Next-Generation Mobile Intelligence Transforms Digital News</h4>
+              <div class="news-meta">
+                <span>By Editorial Desk</span>
+                <span>Just now</span>
+              </div>
+            </div>
+            <div class="news-card-mock" style="margin-bottom: 0;">
+              <span class="news-badge" style="background: rgba(56, 189, 248, 0.2); color: #38BDF8;">TRENDING</span>
+              <h4 class="news-card-title">Deep Dive: Sustainable Infrastructure &amp; Innovation</h4>
+              <div class="news-meta">
+                <span>5 min read</span>
+                <span>Saved Offline</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+      <div class="section-header">
+        <h2 class="section-title">Designed For Seamless Reading</h2>
+        <p class="section-sub">Every feature in Hab Info is crafted for rapid loading, minimal battery consumption, and effortless discovery.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="icon-box">⚡</div>
+          <h3>Real-Time Push Alerts</h3>
+          <p>Instant OS-level push notifications keep you ahead of breaking developments without draining battery.</p>
+        </div>
+        <div class="card">
+          <div class="icon-box">📖</div>
+          <h3>Offline Bookmarks</h3>
+          <p>Save compelling articles locally to read seamlessly on flights, underground transit, or low-connectivity zones.</p>
+        </div>
+        <div class="card">
+          <div class="icon-box">🎨</div>
+          <h3>Refined Typography</h3>
+          <p>Carefully balanced type hierarchies and edge-to-edge dark &amp; light modes engineered for prolonged reading comfort.</p>
+        </div>
+        <div class="card">
+          <div class="icon-box">🛡️</div>
+          <h3>Privacy-First Architecture</h3>
+          <p>Full transparency with zero personal data sales, minimal telemetry, and straightforward data control.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Official Store Listing Contact Section -->
+    <section id="contact" class="contact-section">
+      <h2 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">Developer &amp; Store Contact Details</h2>
+      <p style="color: var(--text-muted);">Official developer information displayed on Google Play Console and customer support channels.</p>
+
+      <div class="contact-grid">
+        <div class="contact-item">
+          <h4>Application Name</h4>
+          <p>Hab Info</p>
+        </div>
+        <div class="contact-item">
+          <h4>Developer / Publisher</h4>
+          <p>Ibrahim Jenberu</p>
+        </div>
+        <div class="contact-item">
+          <h4>Support Email</h4>
+          <p><a href="mailto:jenberuebrahim@gmail.com">jenberuebrahim@gmail.com</a></p>
+        </div>
+        <div class="contact-item">
+          <h4>Official Website</h4>
+          <p><a href="https://habinfo-notification-server.onrender.com">habinfo-notification-server.onrender.com</a></p>
+        </div>
+        <div class="contact-item">
+          <h4>Location</h4>
+          <p>Addis Ababa, Ethiopia</p>
+        </div>
+        <div class="contact-item">
+          <h4>Privacy Policy URL</h4>
+          <p><a href="/privacy">/privacy (Active SSL)</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-links">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="/health">Service Status</a>
+        <a href="#contact">Support</a>
+      </div>
+      <p>&copy; 2026 Hab Info. All rights reserved. Developed by Ibrahim Jenberu.</p>
+    </footer>
   </div>
 </body>
 </html>
