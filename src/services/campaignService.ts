@@ -131,9 +131,7 @@ export async function dispatchCampaign(
       status: 'sent',
       sentAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-      // sentCount = push tokens reached (0 here)
-      // deliveredCount = total successful deliveries (push + in-app)
-      'statistics.sentCount': 0,
+      'statistics.sentCount': FieldValue.increment(inAppCount),
       'statistics.deliveredCount': FieldValue.increment(inAppCount),
       'statistics.inAppCount': FieldValue.increment(inAppCount),
     };
@@ -146,7 +144,7 @@ export async function dispatchCampaign(
       performedBy: dispatchedBy,
       result: 'sent',
       meta: {
-        sentCount: 0,
+        sentCount: inAppCount,
         failedCount: 0,
         deliveredCount: inAppCount,
         inAppCount,
@@ -160,7 +158,7 @@ export async function dispatchCampaign(
       inAppCount,
     });
 
-    return { sentCount: 0, failedCount: 0, deliveredCount: inAppCount, inAppCount };
+    return { sentCount: inAppCount, failedCount: 0, deliveredCount: inAppCount, inAppCount };
   }
 
   // ── Stage 4b: Push delivery ──────────────────────────────────────────────

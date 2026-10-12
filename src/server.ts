@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { campaignsRouter } from './routes/campaigns';
 import { healthRouter } from './routes/health';
 import { usersRouter } from './routes/users';
+import { tokensRouter } from './routes/tokens';
 import { startScheduler, stopScheduler } from './scheduler';
 import { log } from './utils/logger';
 
@@ -26,7 +27,7 @@ const app = express();
 app.use(helmet());
 
 // CORS
-const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim());
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -55,6 +56,7 @@ app.use(globalRateLimit);
 app.use('/', healthRouter);
 app.use('/campaigns', campaignsRouter);
 app.use('/users', usersRouter);
+app.use('/tokens', tokensRouter);
 
 // 404 handler
 app.use((_req, res) => {
@@ -85,7 +87,7 @@ function shutdown(signal: string): void {
 
   stopScheduler();
 
-  server.close(err => {
+  server.close((err) => {
     if (err) {
       log.error('Error during server close', { error: err.message });
       process.exit(1);
@@ -102,7 +104,7 @@ function shutdown(signal: string): void {
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('unhandledRejection', (reason) => {
   log.error('Unhandled promise rejection', {

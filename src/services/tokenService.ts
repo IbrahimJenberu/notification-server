@@ -18,6 +18,7 @@ export interface DeviceTokenDoc {
   notificationPermission: 'granted' | 'denied' | 'undetermined';
   tokenUpdatedAt: FirestoreNS.Timestamp;
   subscribedTopics: string[];
+  role?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,12 +44,12 @@ export async function resolveTokens(tenantId: string, audience: AudienceTarget):
   const col = db.collection(`tenants/${tenantId}/deviceTokens`);
 
   try {
-    const audienceFilter = buildAudienceFilter(col, audience);
-    const snap = await audienceFilter.get();
+    const snap = await col.get();
 
     const tokens = new Set<string>();
     let deniedCount = 0;
     let malformedCount = 0;
+    let audienceFilteredOut = 0;
 
     for (const d of snap.docs) {
       const data = d.data() as Partial<DeviceTokenDoc>;
@@ -56,6 +57,26 @@ export async function resolveTokens(tenantId: string, audience: AudienceTarget):
       if (data.notificationPermission === 'denied') {
         deniedCount++;
         continue;
+      }
+
+      // Audience filtering in memory (resilient against missing/default fields)
+      if (audience.type === 'platform' && audience.value && audience.value !== 'all') {
+        if (data.platform && data.platform !== audience.value) {
+          audienceFilteredOut++;
+          continue;
+        }
+      } else if (audience.type === 'role' && audience.value && audience.value !== 'all') {
+        const docRole = data.role ?? 'reader';
+        if (docRole !== audience.value) {
+          audienceFilteredOut++;
+          continue;
+        }
+      } else if (audience.type === 'topic' && audience.value && audience.value !== 'all') {
+        const topics = Array.isArray(data.subscribedTopics) ? data.subscribedTopics : [];
+        if (!topics.includes(audience.value)) {
+          audienceFilteredOut++;
+          continue;
+        }
       }
 
       const token = extractToken(d);
@@ -74,6 +95,7 @@ export async function resolveTokens(tenantId: string, audience: AudienceTarget):
       totalDocsFound: snap.docs.length,
       deniedCount,
       malformedCount,
+      audienceFilteredOut,
       validTokenCount: result.length,
     });
     return result;
@@ -85,23 +107,6 @@ export async function resolveTokens(tenantId: string, audience: AudienceTarget):
     });
     throw err;
   }
-}
-
-function buildAudienceFilter(
-  col: FirebaseFirestore.CollectionReference,
-  audience: AudienceTarget
-): FirebaseFirestore.Query {
-  if (audience.type === 'platform' && audience.value && audience.value !== 'all') {
-    return col.where('platform', '==', audience.value);
-  }
-  if (audience.type === 'role' && audience.value && audience.value !== 'all') {
-    return col.where('role', '==', audience.value);
-  }
-  if (audience.type === 'topic' && audience.value && audience.value !== 'all') {
-    return col.where('subscribedTopics', 'array-contains', audience.value);
-  }
-  // 'all' or wildcard value — query all device tokens
-  return col as unknown as FirebaseFirestore.Query;
 }
 
 function extractToken(doc: FirebaseFirestore.QueryDocumentSnapshot): string | null {
