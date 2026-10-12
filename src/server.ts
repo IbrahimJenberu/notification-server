@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { campaignsRouter } from './routes/campaigns';
 import { healthRouter } from './routes/health';
 import { usersRouter } from './routes/users';
+import { legalRouter } from './routes/legal';
 import { tokensRouter } from './routes/tokens';
 import { startScheduler, stopScheduler } from './scheduler';
 import { log } from './utils/logger';
@@ -23,8 +24,20 @@ initFirebase();
 // ---------------------------------------------------------------------------
 const app = express();
 
-// Security headers
-app.use(helmet());
+// Security headers with permissive styles/fonts for legal pages
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
 
 // CORS
 const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim());
@@ -53,6 +66,7 @@ app.use(globalRateLimit);
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+app.use('/', legalRouter);
 app.use('/', healthRouter);
 app.use('/campaigns', campaignsRouter);
 app.use('/users', usersRouter);
