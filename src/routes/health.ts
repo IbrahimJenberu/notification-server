@@ -45,7 +45,8 @@ function renderHealthDashboardHtml(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>System Status - Hab Info</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%230755E8'/%3E%3Cpath d='M30 25h14v50H30zM56 25h14v50H56zM44 44h12v12H44z' fill='%23FFF'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -100,17 +101,12 @@ function renderHealthDashboardHtml(
       text-decoration: none;
       color: var(--text-main);
     }
-    .brand-icon {
-      width: 40px;
-      height: 40px;
+    .brand-logo-img {
+      width: 44px;
+      height: 44px;
       border-radius: 12px;
-      background: linear-gradient(135deg, #0755E8, #168CF5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 800;
-      font-size: 20px;
+      object-fit: contain;
+      box-shadow: 0 4px 12px rgba(7, 85, 232, 0.2);
     }
     .brand-title {
       font-size: 1.25rem;
@@ -279,7 +275,7 @@ function renderHealthDashboardHtml(
   <div class="wrapper">
     <div class="header">
       <a href="/" class="brand">
-        <div class="brand-icon">H</div>
+        <img src="/logo.png" alt="Hab Info Logo" class="brand-logo-img" />
         <div>
           <div class="brand-title">Hab Info</div>
           <div style="font-size: 0.75rem; color: var(--text-muted);">Core Service Infrastructure</div>
@@ -343,7 +339,7 @@ function renderHealthDashboardHtml(
 
       <div class="contact-box">
         <p><strong>Developer &amp; Publisher:</strong> Ibrahim Jenberu (Hab Info)</p>
-        <p><strong>Support Email:</strong> <a href="mailto:jenberuebrahim@gmail.com" style="color: var(--primary);">jenberuebrahim@gmail.com</a></p>
+        <p><strong>Support Email:</strong> <a href="mailto:ebrahimjenberu@gmail.com" style="color: var(--primary);">ebrahimjenberu@gmail.com</a></p>
         <p><strong>Developer Phone:</strong> <a href="tel:+251917577381" style="color: var(--primary);">+251 917 577 381</a> (0917577381)</p>
         <p><strong>Location:</strong> Addis Ababa, Ethiopia</p>
         <p><strong>Timestamp:</strong> ${timestamp}</p>
